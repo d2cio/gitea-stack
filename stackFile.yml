@@ -1,0 +1,61 @@
+version: '1.0'
+services:
+  - name: db
+    type: mariadb
+    version: 10.4
+    configuration: StandAlone
+    username: gitea
+    database: gitea
+    # Ask password on create
+    userPassword: null
+    password: null
+    ports:
+      - 3306
+    remoteAccess: false
+    comments:
+      userPassword: Password for user "gitea"
+    deployTo:
+      - gitea
+
+  - name: gitea
+    type: docker
+    image: gitea/gitea
+    version: latest
+    ports:
+      - 3000
+      - 2222
+    remoteAccess: true
+    volumes:
+      - directory: /data
+      - directory: /etc/localtime
+      - directory: /etc/timezone
+    volumesUID: 1000
+    env:
+      SSH_LISTEN_PORT: 2222
+      DB_TYPE: mysql
+      DB_HOST: "{{=service('db').getMasterAlias()}}"
+      DB_USER: "{{=service('db').get('username')}}"
+      DB_PASSWD: "{{=service('db').get('userPassword')}}"
+      DB_NAME: "{{=service('db').get('database')}}"
+      SSH_PORT: 2222
+      ROOT_URL: "http://{{=service('gitea').getNginxDomain()}}"
+    deployTo:
+      - gitea
+
+  - name: web
+    type: nginx
+    version: 1.15
+    ports:
+      - 80
+      - 443
+    remoteAccess: true
+    serviceFiles:
+      - name: gitea
+    deployTo:
+      - gitea
+
+hosts:
+  - name: gitea
+    requirements:
+      cores: 1
+      memory: 1
